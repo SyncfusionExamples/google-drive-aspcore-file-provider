@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <UserSecretsId>9466b0d9-c6b4-467e-8688-39366219d02f</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Google-OAuth2\**" />
+    <Content Remove="Google-OAuth2\**" />
+    <EmbeddedResource Remove="Google-OAuth2\**" />
+    <None Remove="Google-OAuth2\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Models\FileManagerProviderBase.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Apis" Version="1.40.0" />
+    <PackageReference Include="Syncfusion.EJ2.AspNet.Core" Version="17.3.0.14" />
+    <Reference Include="Google.Apis.Auth" Version="1.40.0" />
+    <Reference Include="Google.Apis.Auth.PlatformServices" Version="1.40.0" />
+    <Reference Include="Google.Apis.Core" Version="1.40.0" />
+    <Reference Include="Google.Apis.Drive.v2" Version="1.40.0" />
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="2.1.2" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GoogleOAuth2.0Base\Google_OAuth2.0.csproj" />
+  </ItemGroup>  
+
+</Project>

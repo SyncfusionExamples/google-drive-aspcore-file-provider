@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>Google_OAuth2</RootNamespace>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <PackageReference Include="Google.Apis.Drive.v2" Version="1.40.0.1587" />
+  </ItemGroup>
+
+</Project>
