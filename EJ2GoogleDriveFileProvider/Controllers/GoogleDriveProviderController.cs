@@ -35,7 +35,7 @@ namespace EJ2FileManagerServices.Controllers
                 if ((args.TargetPath == null) && (args.Path == ""))
                 {
                     FileManagerResponse response = new FileManagerResponse();
-                    response.Error = new ErrorDetails { Code = "403", Message = "Restricted to modify the root folder." };
+                    response.Error = new ErrorProperty { Code = "403", Message = "Restricted to modify the root folder." };
                     return googleDrive.ToCamelCase(response);
                 }
             }
