@@ -560,7 +560,7 @@ namespace EJ2FileManagerService.Models
             List<string> childFileList = children.Items.Select(x => x.Id).ToList();
             if (childFileList.IndexOf(TargetData.Id) != -1)
             {
-                ErrorProperty er = new ErrorProperty();
+                ErrorDetails er = new ErrorDetails();
                 er.Code = "400";
                 er.Message = "The destination folder is the subfolder of the source folder.";
                 copyResponse.Error = er;
@@ -624,7 +624,7 @@ namespace EJ2FileManagerService.Models
             List<string> childFileList = children.Items.Select(x => x.Id).ToList();
             if (childFileList.IndexOf(TargetData.Id) != -1)
             {
-                ErrorProperty er = new ErrorProperty();
+                ErrorDetails er = new ErrorDetails();
                 er.Code = "400";
                 er.Message = "The destination folder is the subfolder of the source folder.";
                 moveResponse.Error = er;
