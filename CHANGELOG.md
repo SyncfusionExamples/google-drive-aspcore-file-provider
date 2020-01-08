@@ -2,6 +2,8 @@
 
 ## 17.3.14 (2019-10-04)
 
+### Google Drive Server File System Provider
+
 #### Bug Fixes
 
 - The issue with `the details dialog's file location contains repeated root folder name` has been fixed.

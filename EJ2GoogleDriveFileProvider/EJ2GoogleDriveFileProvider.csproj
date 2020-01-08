@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <PackageReference Include="Google.Apis" Version="1.40.0" />
-    <PackageReference Include="Syncfusion.EJ2.AspNet.Core" Version="17.3.0.14" />
+    <PackageReference Include="Syncfusion.EJ2.AspNet.Core" Version="17.4.0.40" />
     <Reference Include="Google.Apis.Auth" Version="1.40.0" />
     <Reference Include="Google.Apis.Auth.PlatformServices" Version="1.40.0" />
     <Reference Include="Google.Apis.Core" Version="1.40.0" />
