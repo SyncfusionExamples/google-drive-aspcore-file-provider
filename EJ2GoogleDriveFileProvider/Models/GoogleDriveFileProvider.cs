@@ -258,29 +258,116 @@ namespace EJ2FileManagerService.Models
             IList<Google.Apis.Drive.v2.Data.File> files = req.Execute().Items;
             FileManagerResponse readResponse = new FileManagerResponse();
             FilesResource.InsertMediaUpload request;
+            int fileIndex = 0;
+            List<string> existFiles = new List<string>();
+            FilesResource.ListRequest requ = service.Files.List();
+            FileList list = requ.Execute();
+            List<string> fileList = list.Items.Select(x => x.OriginalFilename).ToList();
+            List<string> id = list.Items.Select(x => x.Id).ToList();
             foreach (IFormFile uploadFile in uploadFiles)
             {
-                using (FileStream fsSource = new FileStream(Path.Combine(Path.GetTempPath(), uploadFile.FileName), FileMode.Create))
+                string filename = Path.GetFileName(uploadFile.FileName);
+                if (action == "save")
                 {
-                    uploadFiles[0].CopyTo(fsSource);
+                    foreach (string obtainedFileName in fileList)
+                    {
+                        if (filename == obtainedFileName)
+                        {
+                            existFiles.Add(filename);
+                            fileIndex = fileList.IndexOf(obtainedFileName);
+                        }
+                    }
+                    if (existFiles.Count == 0)
+                    {
+                        using (FileStream fsSource = new FileStream(Path.Combine(Path.GetTempPath(), uploadFile.FileName), FileMode.Create))
+                        {
+                            uploadFiles[0].CopyTo(fsSource);
+                        }
+                        var fileMetadata = new File()
+                        {
+                            Title = uploadFile.FileName,
+                            Parents = new List<ParentReference> { new ParentReference() { Id = data[0].Id } }
+                        };
+                        using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + uploadFile.FileName, System.IO.FileMode.Open))
+                        {
+                            request = service.Files.Insert(fileMetadata, stream, "*/*");
+                            request.Fields = "id";
+                            request.Upload();
+                        }
+                    }
+
                 }
-                var fileMetadata = new File()
+                else if (action == "keepboth")
                 {
-                    Title = uploadFile.FileName,
-                    Parents = new List<ParentReference> { new ParentReference() { Id = data[0].Id } }
-                };
-                using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + uploadFile.FileName, System.IO.FileMode.Open))
-                {
-                    request = service.Files.Insert(fileMetadata, stream, "*/*");
-                    request.Fields = "id";
-                    request.Upload();
+                    string name = uploadFile.FileName;
+                    string fullName = Path.Combine(Path.GetTempPath(), name);
+                    string newName = fullName;
+                    string newFileName = uploadFile.FileName;
+                    int index = fullName.LastIndexOf(".");
+                    int indexValue = newFileName.LastIndexOf(".");
+                    if (index >= 0)
+                    {
+                        newName = fullName.Substring(0, index);
+                        newFileName = newFileName.Substring(0, indexValue);
+                    }
+                    int fileCount = 0;
+                    while (System.IO.File.Exists(newName + (fileCount > 0 ? "(" + fileCount.ToString() + ")" + Path.GetExtension(name) : Path.GetExtension(name))))
+                    {
+                        fileCount++;
+                    }
+                    newName = newFileName + (fileCount > 0 ? "(" + fileCount.ToString() + ")" : "") + Path.GetExtension(name);
+                    using (FileStream fsSource = new FileStream(Path.Combine(Path.GetTempPath(), newName), FileMode.Create))
+                    {
+                        uploadFile.CopyTo(fsSource);
+                    }
+                    var fileMetadata = new File()
+                    {
+                        Title = newName,
+                        Parents = new List<ParentReference> { new ParentReference() { Id = data[0].Id } }
+                    };
+                    using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + newName, System.IO.FileMode.Open))
+                    {
+                        request = service.Files.Insert(fileMetadata, stream, "*/*");
+                        request.Fields = "id";
+                        request.Upload();
+                    }
                 }
-                if (System.IO.File.Exists(Path.Combine(Path.GetTempPath(), uploadFile.FileName)))
-                    System.IO.File.Delete(Path.Combine(Path.GetTempPath(), uploadFile.FileName));
+                else if (action == "replace")
+                {
+                    foreach (string fileId in id)
+                    {
+                        if (fileId == files[fileIndex].Id)
+                        {
+                            service.Files.Delete(fileId).Execute();
+                        }
+                    }
+                    using (FileStream fsSource = new FileStream(Path.Combine(Path.GetTempPath(), uploadFile.FileName), FileMode.Create))
+                    {
+                        uploadFile.CopyTo(fsSource);
+                    }
+                    var fileMetadata = new File()
+                    {
+                        Title = uploadFile.FileName,
+                        Parents = new List<ParentReference> { new ParentReference() { Id = data[0].Id } }
+                    };
+                    using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + uploadFile.FileName, System.IO.FileMode.Open))
+                    {
+                        request = service.Files.Insert(fileMetadata, stream, "*/*");
+                        request.Fields = "id";
+                        request.Upload();
+                    }
+                }
             }
-            uploadResponse.Files = new FileManagerDirectoryContent[] { CreateData };
+            if (existFiles.Count != 0)
+            {
+                ErrorDetails er = new ErrorDetails();
+                er.Code = "400";
+                er.Message = "File already exists.";
+                uploadResponse.Error = er;
+            }
             return uploadResponse;
         }
+
         // Renames a file or folder
         public FileManagerResponse Rename(string path, string name, string newName, bool replace, FileManagerDirectoryContent[] data)
         {
