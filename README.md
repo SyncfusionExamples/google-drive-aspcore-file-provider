@@ -1,6 +1,6 @@
-# ej2-file-manager-google-drive-core-service
+# file-manager-google-drive-core-service
 
-This repository contains the ASP.NET Core Google drive file system providers for the Essential JS 2 File Manager component.
+This repository contains the ASP.NET Core Google drive file system providers for the Syncfusion File Manager component.
 
 ## Key Features
 
@@ -23,14 +23,14 @@ The following actions can be performed with Google drive file system provider.
 
 ## How to run this application?
 
-To run this application, you need to first clone the `ej2-google-drive-aspcore-file-provider` repository and then navigate to its appropriate path where it has been located in your system.
+To run this application, you need to first clone the `google-drive-aspcore-file-provider` repository and then navigate to its appropriate path where it has been located in your system.
 
 To do so, open the command prompt and run the below commands one after the other.
 
 ```
-git clone https://github.com/SyncfusionExamples/ej2-google-drive-aspnet-core-file-provider  ej2-google-drive-aspcore-file-provider
+git clone https://github.com/SyncfusionExamples/google-drive-aspnet-core-file-provider  google-drive-aspcore-file-provider
 
-cd ej2-google-drive-aspcore-file-provider
+cd google-drive-aspcore-file-provider
 
 ```
 
@@ -40,7 +40,7 @@ cd ej2-google-drive-aspcore-file-provider
 
 * Copy the JSON content to below specified JSON files
     
-    * EJ2FileManagerService > credentials > client_secret.json
+    * EJ2GoogleDriveFileProvider > credentials > client_secret.json
     * GoogleOAuth2.0Base > credentials > client_secret.json
 
 ## Running application
