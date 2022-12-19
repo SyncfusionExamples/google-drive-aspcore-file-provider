@@ -290,7 +290,7 @@ namespace EJ2FileManagerService.Models
                         };
                         using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + uploadFile.FileName, System.IO.FileMode.Open))
                         {
-                            request = service.Files.Insert(fileMetadata, stream, "*/*");
+                            request = service.Files.Insert(fileMetadata, stream, "application/");
                             request.Fields = "id";
                             request.Upload();
                         }
