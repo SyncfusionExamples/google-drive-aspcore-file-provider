@@ -532,6 +532,7 @@ namespace EJ2FileManagerService.Models
             listRequest.Fields = "nextPageToken, files(*)";
             List<Google.Apis.Drive.v2.Data.File> result = new List<Google.Apis.Drive.v2.Data.File>();
             FilesResource.ListRequest req = service.Files.List();
+            req.Fields = "items(id,title,parents,iconLink,editable,alternateLink,createdDate,driveId,embedLink,kind,labels,mimeType,owners,spaces,userPermission,version)";
             IList<Google.Apis.Drive.v2.Data.File> files = req.Execute().Items;
             FileManagerResponse readResponse = new FileManagerResponse();
             if (files != null && files.Count > 0)
@@ -547,22 +548,26 @@ namespace EJ2FileManagerService.Models
                 cwd.Id = directory.Id;
                 cwd.HasChild = true;
                 cwd.Type = "Folder";
+                cwd.FilterId = directory.Parents.Count == 0 ? "" : directory.Parents[0].Id + @"\";
                 this.path = new List<string>();
                 cwd.FilterPath = directory.Parents.Count == 0 ? "" : data[0].FilterPath;
-                List<FileManagerDirectoryContent> rootFileList = files.Where(x => x.Parents.Any(c => (bool)c.IsRoot == true)).Select(x => new FileManagerDirectoryContent()
+                if (id == null)
                 {
-                    Id = x.Id,
-                    Name = x.Title,
-                    Size = x.FileSize != null ? long.Parse(x.FileSize.ToString()) : 0,
-                    DateCreated = Convert.ToDateTime(x.CreatedDate),
-                    DateModified = Convert.ToDateTime(x.ModifiedDate),
-                    Type = x.FileExtension == null ? "folder" : x.FileExtension,
-                    HasChild = getChildrenById(x.Id),
-                    FilterPath = @"\",
-                    FilterId = obtainFilterId(x),
-                    IsFile = x.MimeType == "application/vnd.google-apps.folder" ? false : true
-                }).ToList();
-                if (id == null) readResponse.Files = rootFileList;
+                    List<FileManagerDirectoryContent> rootFileList = files.Where(x => x.Parents.Any(c => (bool)c.IsRoot == true)).Select(x => new FileManagerDirectoryContent()
+                    {
+                        Id = x.Id,
+                        Name = x.Title,
+                        Size = x.FileSize != null ? long.Parse(x.FileSize.ToString()) : 0,
+                        DateCreated = Convert.ToDateTime(x.CreatedDate),
+                        DateModified = Convert.ToDateTime(x.ModifiedDate),
+                        Type = x.FileExtension == null ? "folder" : x.FileExtension,
+                        HasChild = getChildrenById(x.Id),
+                        FilterPath = @"\",
+                        FilterId = cwd.Id + @"\",
+                        IsFile = x.MimeType == "application/vnd.google-apps.folder" ? false : true
+                    }).ToList();
+                    readResponse.Files = rootFileList;
+                }
                 else
                 {
                     ChildrenResource.ListRequest request = service.Children.List(id);
@@ -572,6 +577,7 @@ namespace EJ2FileManagerService.Models
                     foreach (string idValue in childId)
                     {
                         File details = service.Files.Get(idValue).Execute();
+                        bool isFile = details.MimeType == "application/vnd.google-apps.folder" ? false : true;
                         FileManagerDirectoryContent content = new FileManagerDirectoryContent()
                         {
                             Id = idValue,
@@ -580,10 +586,10 @@ namespace EJ2FileManagerService.Models
                             DateCreated = Convert.ToDateTime(details.CreatedDate),
                             DateModified = Convert.ToDateTime(details.ModifiedDate),
                             Type = details.FileExtension,
-                            FilterPath = data.Length != 0 ? obtainFilterPath(details, true) + @"\" : @"\",
-                            FilterId = obtainFilterId(details),
-                            HasChild = getChildrenById(idValue),
-                            IsFile = details.MimeType == "application/vnd.google-apps.folder" ? false : true
+                            FilterPath = data.Length != 0 ? cwd.FilterPath + cwd.Name + @"\" + details.Title + @"\" : @"\",
+                            FilterId = cwd.FilterId + cwd.Id + @"\" + idValue + @"\",
+                            IsFile = isFile,
+                            HasChild = isFile == true ? false : getChildrenById(idValue)
                         };
                         childFileList.Add(content);
                     }
