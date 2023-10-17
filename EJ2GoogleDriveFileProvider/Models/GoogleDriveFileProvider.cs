@@ -527,15 +527,15 @@ namespace EJ2FileManagerService.Models
             string id = (path == "/") ? null : data[0].Id;
             // Create Drive API service.
             DriveService service = GetService();
-            // Define parameters of request.
-            FilesResource.ListRequest listRequest = service.Files.List();
-            listRequest.Fields = "nextPageToken, files(*)";
-            List<Google.Apis.Drive.v2.Data.File> result = new List<Google.Apis.Drive.v2.Data.File>();
-            FilesResource.ListRequest req = service.Files.List();
-            req.Fields = "items(id,title,parents,iconLink,editable,alternateLink,createdDate,driveId,embedLink,kind,labels,mimeType,owners,spaces,userPermission,version)";
-            IList<Google.Apis.Drive.v2.Data.File> files = req.Execute().Items;
+            IList<Google.Apis.Drive.v2.Data.File> files = new List<Google.Apis.Drive.v2.Data.File>();
             FileManagerResponse readResponse = new FileManagerResponse();
-            if (files != null && files.Count > 0)
+            if (path == "/")
+            {
+                FilesResource.ListRequest req = service.Files.List();
+                req.Fields = "items(parents,id,title,fileSize,mimeType,createdDate,modifiedDate,fileExtension)";
+                files = req.Execute().Items;
+            }
+            if (id != null || (files != null && files.Count > 0))
             {
                 FileManagerDirectoryContent cwd = new FileManagerDirectoryContent();
                 Google.Apis.Drive.v2.Data.File directory = (id == null) ? service.Files.Get(files.Where(a => a.Parents.Any(c => (bool)c.IsRoot == true)).ToList()[0].Parents[0].Id).Execute() :
@@ -561,7 +561,7 @@ namespace EJ2FileManagerService.Models
                         DateCreated = Convert.ToDateTime(x.CreatedDate),
                         DateModified = Convert.ToDateTime(x.ModifiedDate),
                         Type = x.FileExtension == null ? "folder" : x.FileExtension,
-                        HasChild = getChildrenById(x.Id),
+                        HasChild = true,
                         FilterPath = @"\",
                         FilterId = cwd.Id + @"\",
                         IsFile = x.MimeType == "application/vnd.google-apps.folder" ? false : true
@@ -574,9 +574,12 @@ namespace EJ2FileManagerService.Models
                     ChildList children = request.Execute();
                     List<FileManagerDirectoryContent> childFileList = new List<FileManagerDirectoryContent>();
                     string[] childId = children.Items.Select(x => x.Id).ToList().ToArray();
+                    string fields = "id,title,createdDate,modifiedDate,mimeType,fileSize"; // Add the fields you need
                     foreach (string idValue in childId)
                     {
-                        File details = service.Files.Get(idValue).Execute();
+                        FilesResource.GetRequest getRequest = service.Files.Get(idValue);
+                        getRequest.Fields = fields;
+                        File details = getRequest.Execute();
                         bool isFile = details.MimeType == "application/vnd.google-apps.folder" ? false : true;
                         FileManagerDirectoryContent content = new FileManagerDirectoryContent()
                         {
@@ -589,7 +592,7 @@ namespace EJ2FileManagerService.Models
                             FilterPath = data.Length != 0 ? cwd.FilterPath + cwd.Name + @"\" + details.Title + @"\" : @"\",
                             FilterId = cwd.FilterId + cwd.Id + @"\" + idValue + @"\",
                             IsFile = isFile,
-                            HasChild = isFile == true ? false : getChildrenById(idValue)
+                            HasChild = !isFile
                         };
                         childFileList.Add(content);
                     }
