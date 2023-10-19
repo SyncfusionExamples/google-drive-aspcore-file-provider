@@ -524,21 +524,32 @@ namespace EJ2FileManagerService.Models
         // Reads the file(s) and folder(s)
         public FileManagerResponse GetFiles(string path, bool showHiddenItems, params FileManagerDirectoryContent[] data)
         {
+            // Check if the path is the root directory ("/"). If so, set id to null, otherwise, get the id from the provided data
             string id = (path == "/") ? null : data[0].Id;
+            // Define the fields to retrieve for each file
+            string fields = "items(parents,id,title,fileSize,mimeType,createdDate,modifiedDate,fileExtension)";
+            // Set the maximum number of results to retrieve per request
+            int result = 5000;
             // Create Drive API service.
             DriveService service = GetService();
-            // Define parameters of request.
-            FilesResource.ListRequest listRequest = service.Files.List();
-            listRequest.Fields = "nextPageToken, files(*)";
-            List<Google.Apis.Drive.v2.Data.File> result = new List<Google.Apis.Drive.v2.Data.File>();
-            FilesResource.ListRequest req = service.Files.List();
-            IList<Google.Apis.Drive.v2.Data.File> files = req.Execute().Items;
+            // Initialize a list to store Google Drive files and create a response object
+            IList<Google.Apis.Drive.v2.Data.File> files = new List<Google.Apis.Drive.v2.Data.File>();
             FileManagerResponse readResponse = new FileManagerResponse();
-            if (files != null && files.Count > 0)
+            // If the path is the root directory ("/"), retrieve the list of files at the root level.
+            if (path == "/")
             {
+                FilesResource.ListRequest req = service.Files.List();
+                req.Fields = fields;
+                req.MaxResults = result;
+                files = req.Execute().Items;
+            }
+            if (id != null || (files != null && files.Count > 0))
+            {
+                // Create a FileManagerDirectoryContent object to represent the current working directory (CWD)
                 FileManagerDirectoryContent cwd = new FileManagerDirectoryContent();
                 Google.Apis.Drive.v2.Data.File directory = (id == null) ? service.Files.Get(files.Where(a => a.Parents.Any(c => (bool)c.IsRoot == true)).ToList()[0].Parents[0].Id).Execute() :
                     service.Files.Get(id).Execute();
+                // Populate the CWD object with information about the directory
                 cwd.Name = directory.Title;
                 cwd.Size = directory.FileSize != null ? long.Parse(directory.FileSize.ToString()) : 0;
                 cwd.IsFile = directory.MimeType == "application/vnd.google-apps.folder" ? false : true;
@@ -547,51 +558,73 @@ namespace EJ2FileManagerService.Models
                 cwd.Id = directory.Id;
                 cwd.HasChild = true;
                 cwd.Type = "Folder";
+                cwd.FilterId = directory.Parents.Count == 0 ? "" : directory.Parents[0].Id + @"\";
                 this.path = new List<string>();
                 cwd.FilterPath = directory.Parents.Count == 0 ? "" : data[0].FilterPath;
-                List<FileManagerDirectoryContent> rootFileList = files.Where(x => x.Parents.Any(c => (bool)c.IsRoot == true)).Select(x => new FileManagerDirectoryContent()
+                if (id == null)
                 {
-                    Id = x.Id,
-                    Name = x.Title,
-                    Size = x.FileSize != null ? long.Parse(x.FileSize.ToString()) : 0,
-                    DateCreated = Convert.ToDateTime(x.CreatedDate),
-                    DateModified = Convert.ToDateTime(x.ModifiedDate),
-                    Type = x.FileExtension == null ? "folder" : x.FileExtension,
-                    HasChild = getChildrenById(x.Id),
-                    FilterPath = @"\",
-                    FilterId = obtainFilterId(x),
-                    IsFile = x.MimeType == "application/vnd.google-apps.folder" ? false : true
-                }).ToList();
-                if (id == null) readResponse.Files = rootFileList;
-                else
-                {
-                    ChildrenResource.ListRequest request = service.Children.List(id);
-                    ChildList children = request.Execute();
-                    List<FileManagerDirectoryContent> childFileList = new List<FileManagerDirectoryContent>();
-                    string[] childId = children.Items.Select(x => x.Id).ToList().ToArray();
-                    foreach (string idValue in childId)
+                    FilesResource.ListRequest req = service.Files.List();
+                    req.Q = "'root' in parents";
+                    req.Fields = fields;
+                    req.MaxResults = result;
+                    FileList rootFiles = req.Execute();
+                    List<FileManagerDirectoryContent> rootFileList = new List<FileManagerDirectoryContent>();
+                    // Iterate through the root files and create FileManagerDirectoryContent objects for each file.
+                    foreach (File details in rootFiles.Items)
                     {
-                        File details = service.Files.Get(idValue).Execute();
+                        bool isFile = details.MimeType == "application/vnd.google-apps.folder" ? false : true;
                         FileManagerDirectoryContent content = new FileManagerDirectoryContent()
                         {
-                            Id = idValue,
+                            Id = details.Id,
+                            Name = details.Title,
+                            Size = details.FileSize != null ? long.Parse(details.FileSize.ToString()) : 0,
+                            DateCreated = Convert.ToDateTime(details.CreatedDate),
+                            DateModified = Convert.ToDateTime(details.ModifiedDate),
+                            Type = details.FileExtension == null ? "folder" : details.FileExtension,
+                            FilterPath = @"\",
+                            FilterId = cwd.Id + @"\",
+                            IsFile = isFile,
+                            HasChild = !isFile
+                        };
+                        rootFileList.Add(content);
+                        readResponse.Files = rootFileList;
+                    }
+                }
+                else
+                {
+                    // Retrieve child files (files within the current directory)
+                    FilesResource.ListRequest filesRequest = service.Files.List();
+                    filesRequest.Q = string.Format("'{0}' in parents", id);
+                    filesRequest.Fields = fields;
+                    filesRequest.MaxResults = result;
+                    FileList childFiles = filesRequest.Execute();
+                    List<FileManagerDirectoryContent> childFileList = new List<FileManagerDirectoryContent>();
+                    // Iterate through the child files and create FileManagerDirectoryContent objects for each file
+                    foreach (File details in childFiles.Items)
+                    {
+                        bool isFile = details.MimeType == "application/vnd.google-apps.folder" ? false : true;
+                        FileManagerDirectoryContent content = new FileManagerDirectoryContent()
+                        {
+                            Id = details.Id,
                             Name = details.Title,
                             Size = details.FileSize != null ? long.Parse(details.FileSize.ToString()) : 0,
                             DateCreated = Convert.ToDateTime(details.CreatedDate),
                             DateModified = Convert.ToDateTime(details.ModifiedDate),
                             Type = details.FileExtension,
-                            FilterPath = data.Length != 0 ? obtainFilterPath(details, true) + @"\" : @"\",
-                            FilterId = obtainFilterId(details),
-                            HasChild = getChildrenById(idValue),
-                            IsFile = details.MimeType == "application/vnd.google-apps.folder" ? false : true
+                            FilterPath = data.Length != 0 ? cwd.FilterPath + cwd.Name + @"\" + details.Title + @"\" : @"\",
+                            FilterId = cwd.FilterId + cwd.Id + @"\" + details.Id + @"\",
+                            IsFile = isFile,
+                            HasChild = !isFile
                         };
                         childFileList.Add(content);
                     }
                     readResponse.Files = childFileList;
                 }
+                // Set the CWD in the response and return it.
                 readResponse.CWD = cwd;
                 return readResponse;
             }
+            // If no data is found, return an empty response.
             return readResponse;
         }
 
