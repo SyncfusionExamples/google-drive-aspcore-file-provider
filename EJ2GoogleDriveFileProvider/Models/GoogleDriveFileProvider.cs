@@ -15,13 +15,11 @@ using Microsoft.AspNetCore.Http;
 using Google.Apis.Download;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Hosting;
-
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using File = Google.Apis.Drive.v2.Data.File;
 using GoogleDriveOAuth2;
 using System.Net;
 using System.IO.Compression;
+using System.Text.Json;
 
 namespace EJ2FileManagerService.Models
 {
@@ -789,7 +787,12 @@ namespace EJ2FileManagerService.Models
 
         public string ToCamelCase(FileManagerResponse userData)
         {
-            return JsonConvert.SerializeObject(userData, new JsonSerializerSettings { ContractResolver = new DefaultContractResolver { NamingStrategy = new CamelCaseNamingStrategy() } });
+            JsonSerializerOptions options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            };
+
+            return JsonSerializer.Serialize(userData, options);
         }
 
         // Converts the byte value to appropriate size value
