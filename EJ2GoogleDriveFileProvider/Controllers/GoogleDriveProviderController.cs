@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
 using GoogleDriveOAuth2;
@@ -16,6 +14,7 @@ using Google.Apis.Drive.v2.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using EJ2FileManagerService.Models;
+using System.Text.Json;
 
 namespace EJ2FileManagerServices.Controllers
 {
@@ -74,8 +73,13 @@ namespace EJ2FileManagerServices.Controllers
         public IActionResult GoogleDriveUpload(string path, IList<IFormFile> uploadFiles, string action, string data)
         {
             FileManagerResponse uploadResponse;
-            FileManagerDirectoryContent FileData = JsonConvert.DeserializeObject<FileManagerDirectoryContent>(data);
-            uploadResponse = googleDrive.Upload(path, uploadFiles, action, FileData);
+            FileManagerDirectoryContent[] dataObject = new FileManagerDirectoryContent[1];
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            };
+            dataObject[0] = JsonSerializer.Deserialize<FileManagerDirectoryContent>(data, options);
+            uploadResponse = googleDrive.Upload(path, uploadFiles, action, dataObject);
             if (uploadResponse.Error != null)
             {
                 Response.Clear();
@@ -90,7 +94,11 @@ namespace EJ2FileManagerServices.Controllers
         [Route("GoogleDriveDownload")]
         public IActionResult GoogleDriveDownload(string downloadInput)
         {
-            FileManagerDirectoryContent args = JsonConvert.DeserializeObject<FileManagerDirectoryContent>(downloadInput);
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            };
+            FileManagerDirectoryContent args = JsonSerializer.Deserialize<FileManagerDirectoryContent>(downloadInput, options);
             args.Path = (args.Path);
             return googleDrive.Download(args.Path, args.Names, args.Data);
         }
