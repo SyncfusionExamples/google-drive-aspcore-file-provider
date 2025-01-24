@@ -25,7 +25,7 @@ namespace EJ2FileManagerService
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.AddMvc();
             services.AddCors(options =>
             {
                 options.AddPolicy("AllowAllOrigins", builder =>
@@ -48,9 +48,12 @@ namespace EJ2FileManagerService
             {
                 app.UseHsts();
             }
+            app.UseRouting();
             app.UseCors("AllowAllOrigins");
             app.UseHttpsRedirection();
-            app.UseMvc();
+            app.UseEndpoints(endpoints => {
+                endpoints.MapControllerRoute(name: "default", pattern: "{controller=Test}/{action=Index}/{id?}");
+            });
         }
     }
 }

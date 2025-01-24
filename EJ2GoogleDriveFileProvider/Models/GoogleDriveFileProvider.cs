@@ -23,7 +23,7 @@ using System.Text.Json;
 
 namespace EJ2FileManagerService.Models
 {
-    public class GoogleDriveFileProvider : FileProviderBase
+    public class GoogleDriveFileProvider
     {
         static Dictionary<string, Google.Apis.Drive.v2.Data.File> files = new Dictionary<string, Google.Apis.Drive.v2.Data.File>();
         long sizeValue = 0;
