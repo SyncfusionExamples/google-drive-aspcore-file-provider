@@ -23,7 +23,7 @@ using System.Text.Json;
 
 namespace EJ2FileManagerService.Models
 {
-    public class GoogleDriveFileProvider : FileProviderBase
+    public class GoogleDriveFileProvider
     {
         static Dictionary<string, Google.Apis.Drive.v2.Data.File> files = new Dictionary<string, Google.Apis.Drive.v2.Data.File>();
         long sizeValue = 0;
@@ -152,29 +152,30 @@ namespace EJ2FileManagerService.Models
             {
                 File fileProperties = service.Files.Get(item.Id).Execute();
                 byte[] fileContent = null;
+                string safePath = SanitizeAndValidatePath(Path.Combine(Path.GetTempPath(), item.Name));
                 if (item.IsFile)
                 {
                     fileContent = service.HttpClient.GetByteArrayAsync(fileProperties.DownloadUrl).Result;
-
-                    if (System.IO.File.Exists(Path.Combine(Path.GetTempPath(), item.Name)))
-                        System.IO.File.Delete(Path.Combine(Path.GetTempPath(), item.Name));
-                    using (Stream file = System.IO.File.OpenWrite(Path.Combine(Path.GetTempPath(), item.Name)))
+                    if (System.IO.File.Exists(safePath))
+                        System.IO.File.Delete(safePath);
+                    using (Stream file = System.IO.File.OpenWrite(safePath))
                     {
                         file.Write(fileContent, 0, fileContent.Length);
                     }
                 }
-                else Directory.CreateDirectory(Path.GetTempPath() + item.Name);
+                else Directory.CreateDirectory(safePath);
                 if (files.IndexOf(item.Name) == -1) files.Add(item.Name);
             }
             if (files.Count == 1 && data[0].IsFile)
             {
                 try
                 {
-                    FileStream fileStreamInput = new FileStream(Path.Combine(Path.GetTempPath(), files[0]), FileMode.Open, FileAccess.Read);
+                    string safePath = SanitizeAndValidatePath(Path.Combine(Path.GetTempPath(), files[0]));
+                    FileStream fileStreamInput = new FileStream(safePath, FileMode.Open, FileAccess.Read);
                     fileStreamResult = new FileStreamResult(fileStreamInput, "APPLICATION/octet-stream");
                     fileStreamResult.FileDownloadName = files[0];
                 }
-                catch (Exception ex) { throw ex; }
+                catch (Exception) { throw; }
             }
             else
             {
@@ -184,12 +185,13 @@ namespace EJ2FileManagerService.Models
                 {
                     for (int i = 0; i < files.Count; i++)
                     {
+                        string safePath = SanitizeAndValidatePath(Path.GetTempPath() + files[i]);
                         if (!data[i].IsFile)
                         {
                             zipEntry = archive.CreateEntry(data[i].Name + "/");
                             DownloadFolderFiles(data[i].Id, data[i].Name, archive, zipEntry);
                         }
-                        else zipEntry = archive.CreateEntryFromFile(Path.GetTempPath() + files[i], files[i], CompressionLevel.Fastest);
+                        else zipEntry = archive.CreateEntryFromFile(safePath, files[i], CompressionLevel.Fastest);
                     }
                     archive.Dispose();
                     FileStream fileStreamInput = new FileStream(Path.Combine(Path.GetTempPath(), "files.zip"), FileMode.Open, FileAccess.Read, FileShare.Delete);
@@ -222,27 +224,25 @@ namespace EJ2FileManagerService.Models
                 {
                     Stream file;
                     File fileProperties = service.Files.Get(child.Id).Execute();
-                    if (System.IO.File.Exists(Path.Combine(Path.GetTempPath() + Name, fileProperties.Title)))
+                    string safePath = SanitizeAndValidatePath(Path.Combine(Path.GetTempPath() + Name, fileProperties.Title));
+                    if (System.IO.File.Exists(safePath))
                     {
-                        System.IO.File.Delete(Path.Combine(Path.GetTempPath() + Name, fileProperties.Title));
+                        System.IO.File.Delete(safePath);
                     }
                     byte[] subFileContent = service.HttpClient.GetByteArrayAsync(fileProperties.DownloadUrl).Result;
-                    using (file = System.IO.File.OpenWrite(Path.Combine(Path.GetTempPath() + Name, fileProperties.Title)))
+                    using (file = System.IO.File.OpenWrite(safePath))
                     {
                         file.Write(subFileContent, 0, subFileContent.Length);
                         file.Close();
-                        zipEntry = archive.CreateEntryFromFile(Path.Combine(Path.GetTempPath() + Name, fileProperties.Title), Name + "\\" + fileProperties.Title, CompressionLevel.Fastest);
+                        zipEntry = archive.CreateEntryFromFile(safePath, Name + "\\" + fileProperties.Title, CompressionLevel.Fastest);
                     }
                 }
             }
-            if (System.IO.File.Exists(Path.Combine(Path.GetTempPath(), Name)))
-                System.IO.File.Delete(Path.Combine(Path.GetTempPath(), Name));
+            string sanitizePath = SanitizeAndValidatePath(Path.Combine(Path.GetTempPath(), Name));
+            if (System.IO.File.Exists(sanitizePath))
+                System.IO.File.Delete(sanitizePath);
         }
-        // Writes the content of the file
-        private static void SaveStream(MemoryStream stream, string FilePath)
-        {
-            using (System.IO.FileStream file = new FileStream(FilePath, FileMode.Create, FileAccess.ReadWrite)) { stream.WriteTo(file); }
-        }
+
         // Uploads the file(s)
         public virtual FileManagerResponse Upload(string path, IList<IFormFile> uploadFiles, string action, params FileManagerDirectoryContent[] data)
         {
@@ -265,6 +265,7 @@ namespace EJ2FileManagerService.Models
             foreach (IFormFile uploadFile in uploadFiles)
             {
                 string filename = Path.GetFileName(uploadFile.FileName);
+                string safePath = SanitizeAndValidatePath(Path.Combine(Path.GetTempPath(), uploadFile.FileName));
                 if (action == "save")
                 {
                     foreach (string obtainedFileName in fileList)
@@ -277,7 +278,8 @@ namespace EJ2FileManagerService.Models
                     }
                     if (existFiles.Count == 0)
                     {
-                        using (FileStream fsSource = new FileStream(Path.Combine(Path.GetTempPath(), uploadFile.FileName), FileMode.Create))
+
+                        using (FileStream fsSource = new FileStream(safePath, FileMode.Create))
                         {
                             uploadFiles[0].CopyTo(fsSource);
                         }
@@ -286,7 +288,7 @@ namespace EJ2FileManagerService.Models
                             Title = uploadFile.FileName,
                             Parents = new List<ParentReference> { new ParentReference() { Id = data[0].Id } }
                         };
-                        using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + uploadFile.FileName, System.IO.FileMode.Open))
+                        using (FileStream stream = new System.IO.FileStream(safePath, System.IO.FileMode.Open))
                         {
                             request = service.Files.Insert(fileMetadata, stream, "application/");
                             request.Fields = "id";
@@ -298,7 +300,7 @@ namespace EJ2FileManagerService.Models
                 else if (action == "keepboth")
                 {
                     string name = uploadFile.FileName;
-                    string fullName = Path.Combine(Path.GetTempPath(), name);
+                    string fullName = SanitizeAndValidatePath(Path.Combine(Path.GetTempPath(), name));
                     string newName = fullName;
                     string newFileName = uploadFile.FileName;
                     int index = fullName.LastIndexOf(".");
@@ -314,7 +316,8 @@ namespace EJ2FileManagerService.Models
                         fileCount++;
                     }
                     newName = newFileName + (fileCount > 0 ? "(" + fileCount.ToString() + ")" : "") + Path.GetExtension(name);
-                    using (FileStream fsSource = new FileStream(Path.Combine(Path.GetTempPath(), newName), FileMode.Create))
+                    string newSafePath = SanitizeAndValidatePath(Path.Combine(Path.GetTempPath(), newName));
+                    using (FileStream fsSource = new FileStream(newSafePath, FileMode.Create))
                     {
                         uploadFile.CopyTo(fsSource);
                     }
@@ -323,7 +326,7 @@ namespace EJ2FileManagerService.Models
                         Title = newName,
                         Parents = new List<ParentReference> { new ParentReference() { Id = data[0].Id } }
                     };
-                    using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + newName, System.IO.FileMode.Open))
+                    using (FileStream stream = new System.IO.FileStream(newSafePath, System.IO.FileMode.Open))
                     {
                         request = service.Files.Insert(fileMetadata, stream, "application/");
                         request.Fields = "id";
@@ -339,7 +342,7 @@ namespace EJ2FileManagerService.Models
                             service.Files.Delete(fileId).Execute();
                         }
                     }
-                    using (FileStream fsSource = new FileStream(Path.Combine(Path.GetTempPath(), uploadFile.FileName), FileMode.Create))
+                    using (FileStream fsSource = new FileStream(safePath, FileMode.Create))
                     {
                         uploadFile.CopyTo(fsSource);
                     }
@@ -348,7 +351,7 @@ namespace EJ2FileManagerService.Models
                         Title = uploadFile.FileName,
                         Parents = new List<ParentReference> { new ParentReference() { Id = data[0].Id } }
                     };
-                    using (FileStream stream = new System.IO.FileStream(Path.GetTempPath() + uploadFile.FileName, System.IO.FileMode.Open))
+                    using (FileStream stream = new System.IO.FileStream(safePath, System.IO.FileMode.Open))
                     {
                         request = service.Files.Insert(fileMetadata, stream, "application/");
                         request.Fields = "id";
@@ -805,7 +808,31 @@ namespace EJ2FileManagerService.Models
                 int loc = Convert.ToInt32(Math.Floor(Math.Log(Math.Abs(fileSize), 1024)));
                 return (Math.Sign(fileSize) * Math.Round(Math.Abs(fileSize) / Math.Pow(1024, loc), 1)).ToString() + " " + index[loc];
             }
-            catch (Exception e) { throw e; }
+            catch (Exception) { throw; }
+        }
+
+        private string SanitizeAndValidatePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException("Path cannot be null or empty.");
+            }
+            string decodedPath;
+            do
+            {
+                decodedPath = path;
+                path = Uri.UnescapeDataString(decodedPath);
+            } while (decodedPath != path);
+            string fullPath = Path.GetFullPath(path);
+
+            // Ensure the path is within the allowed directory
+            string allowedDirectory = Path.GetFullPath(Path.GetTempPath());
+            if (!fullPath.StartsWith(allowedDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new UnauthorizedAccessException("Access to the path is not allowed.");
+            }
+
+            return fullPath;
         }
     }
 }
