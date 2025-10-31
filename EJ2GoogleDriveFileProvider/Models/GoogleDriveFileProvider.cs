@@ -188,10 +188,21 @@ namespace EJ2FileManagerService.Models
                         string safePath = SanitizeAndValidatePath(Path.GetTempPath() + files[i]);
                         if (!data[i].IsFile)
                         {
-                            zipEntry = archive.CreateEntry(data[i].Name + "/");
-                            DownloadFolderFiles(data[i].Id, data[i].Name, archive, zipEntry);
+                            string sanitizedFolderName = SanitizeZipEntryName(data[i].Name);
+                            if (!string.IsNullOrEmpty(sanitizedFolderName))
+                            {
+                                zipEntry = archive.CreateEntry(sanitizedFolderName + "/");
+                                DownloadFolderFiles(data[i].Id, sanitizedFolderName, archive, zipEntry);
+                            }
                         }
-                        else zipEntry = archive.CreateEntryFromFile(safePath, files[i], CompressionLevel.Fastest);
+                        else 
+                        {
+                            string sanitizedEntryName = SanitizeZipEntryName(files[i]);
+                            if (!string.IsNullOrEmpty(sanitizedEntryName))
+                            {
+                                zipEntry = archive.CreateEntryFromFile(safePath, sanitizedEntryName, CompressionLevel.Fastest);
+                            }
+                        }
                     }
                     archive.Dispose();
                     FileStream fileStreamInput = new FileStream(Path.Combine(Path.GetTempPath(), "files.zip"), FileMode.Open, FileAccess.Read, FileShare.Delete);
@@ -833,6 +844,11 @@ namespace EJ2FileManagerService.Models
             }
 
             return fullPath;
+        }
+
+        private string SanitizeZipEntryName(string entryName)
+        {
+            return Path.GetFileName(entryName);
         }
     }
 }
